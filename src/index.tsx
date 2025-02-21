@@ -35,7 +35,8 @@ const Inno = NativeModules.Inno
         },
       }
     );
-const innoEmitter = Platform.OS === 'ios' ? new NativeEventEmitter(Inno) : null;
+const innoEmitter =  new NativeEventEmitter(Inno);
+
 
 // ✅ Show EKYC UI (Existing)
 export function showEkycUI(): Promise<void> {
