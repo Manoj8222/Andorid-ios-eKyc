@@ -24,7 +24,7 @@ const SelectionActivity = NativeModules.SelectionActivity
       }
     );
 // }
-
+if(Platform.OS === 'ios'){
 const Inno = NativeModules.Inno
   ? NativeModules.Inno
   : new Proxy(
@@ -35,6 +35,7 @@ const Inno = NativeModules.Inno
         },
       }
     );
+  }
 const innoEmitter =  new NativeEventEmitter(Inno);
 
 
