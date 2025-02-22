@@ -303,6 +303,7 @@ private func uploadImageToAPI(data: Data, referenceID: String) {
                 }
                 let ocrResponse = OcrResponseBack(
                         dateOfExpiry: backObject["Date_of_Expiry"] as? String ?? "",
+                        dateOfIssue: backObject["Date_of_Issue"] as? String ?? "",
                         phoneNumber: backObject["Phone_Number"] as? String ?? "",
                         region: backObject["Region_City_Admin"] as? String ?? "",
                         zone: backObject["Zone_City_Admin_Sub_City"] as? String ?? "",

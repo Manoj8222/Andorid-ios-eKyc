@@ -124,12 +124,13 @@ class IdCardFrontBackCapturedViewController: UIViewController {
             addInfoLabel(to: frontDataStackView, title: "Date of Birth", value: frontData.dob)
             addInfoLabel(to: frontDataStackView, title: "Sex", value: frontData.sex)
             addInfoLabel(to: frontDataStackView, title: "Nationality", value: frontData.nationality)
-            addInfoLabel(to: frontDataStackView, title: "FCN", value: frontData.fcn)
             addInfoLabel(to: frontDataStackView, title: "Date of Expiry", value: frontData.dateOfExpiry)
+            addInfoLabel(to: frontDataStackView, title: "FCN", value: frontData.fcn)
         }
         
         if let backData = SharedViewModel.shared.ocrResponseBack {
             addInfoLabel(to: backDataStackView, title: "Date of Expiry", value: backData.dateOfExpiry)
+            addInfoLabel(to: backDataStackView, title: "Date of Issue", value: backData.dateOfIssue)
             addInfoLabel(to: backDataStackView, title: "Phone Number", value: backData.phoneNumber)
             addInfoLabel(to: backDataStackView, title: "Region", value: backData.region)
             addInfoLabel(to: backDataStackView, title: "Zone", value: backData.zone)

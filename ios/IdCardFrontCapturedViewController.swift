@@ -111,8 +111,8 @@ class IdCardFrontCapturedViewController: UIViewController {
         addInfoLabel(title: "Date of Birth", value: ocrData.dob)
         addInfoLabel(title: "Sex", value: ocrData.sex)
         addInfoLabel(title: "Nationality", value: ocrData.nationality)
+        addInfoLabel(title: "Date of Expiry", value: ocrData.dateOfExpiry ?? "")
         addInfoLabel(title: "FCN", value: ocrData.fcn)
-        addInfoLabel(title: "Date of Expiry", value: ocrData.dateOfExpiry ?? "N/A")
 
         print("Full Name: \(ocrData.fullName)")
         print("Date of Birth: \(ocrData.dob)")

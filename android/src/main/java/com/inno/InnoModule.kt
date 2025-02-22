@@ -465,6 +465,7 @@ class FrontIdCardActivity : AppCompatActivity() {
         }
     }
 
+
     private suspend fun handleSuccessfulOcrResponse(ocrResponse: Response, croppedImageData: ByteArray) {
         Log.d("OCRResponse", "handleSuccessfulOcrResponse${ocrResponse}")
         try {
@@ -1272,9 +1273,9 @@ class BackIdCardActivity : AppCompatActivity() {
             val ocrDataBack = OcrResponseBack(
                 Date_of_Expiry = backData.optString("Date_of_Expiry", "N/A"),
                 Phone_Number = backData.optString("Phone_Number", "N/A"),
-                Region_City_Admin = backData.optString("Region_City_Admin", "N/A"),
-                Zone_City_Admin_Sub_City = backData.optString("Zone_City_Admin_Sub_City", "N/A"),
-                Woreda_City_Admin_Kebele = backData.optString("Woreda_City_Admin_Kebele", "N/A"),
+                Region = backData.optString("Region", "N/A"),
+                Zone = backData.optString("Zone", "N/A"),
+                Woreda = backData.optString("Woreda", "N/A"),
                 FIN = backData.optString("FIN", "N/A")
             )
 
@@ -1537,9 +1538,9 @@ class BackActivity : AppCompatActivity() {
                   // Display Back OCR Data with null or empty check
                   addDataRow(backOcrLayout, "Date of Expiry", data.Date_of_Expiry?.takeIf { it.isNotBlank() } ?: "N/A")
                   addDataRow(backOcrLayout, "Phone Number", data.Phone_Number?.takeIf { it.isNotBlank() } ?: "N/A")
-                  addDataRow(backOcrLayout, "Region/City/Admin", data.Region_City_Admin?.takeIf { it.isNotBlank() } ?: "N/A")
-                  addDataRow(backOcrLayout, "Zone/City/Admin/Sub-City", data.Zone_City_Admin_Sub_City?.takeIf { it.isNotBlank() } ?: "N/A")
-                  addDataRow(backOcrLayout, "Woreda/City/Admin/Kebele", data.Woreda_City_Admin_Kebele?.takeIf { it.isNotBlank() } ?: "N/A")
+                  addDataRow(backOcrLayout, "Region", data.Region?.takeIf { it.isNotBlank() } ?: "N/A")
+                  addDataRow(backOcrLayout, "Zone", data.Zone?.takeIf { it.isNotBlank() } ?: "N/A")
+                  addDataRow(backOcrLayout, "Woreda", data.Woreda?.takeIf { it.isNotBlank() } ?: "N/A")
                   addDataRow(backOcrLayout, "FIN", data.FIN?.takeIf { it.isNotBlank() } ?: "N/A")
               }
 
@@ -2640,9 +2641,9 @@ data class OcrResponseFront(
 data class OcrResponseBack(
         val Date_of_Expiry: String,
         val Phone_Number: String,
-        val Region_City_Admin: String,
-        val Zone_City_Admin_Sub_City: String,
-        val Woreda_City_Admin_Kebele: String,
+        val Region: String,
+        val Zone: String,
+        val Woreda: String,
         val FIN: String
 ) : Serializable
 
@@ -2664,9 +2665,9 @@ fun OcrResponseBack.toMap(): Map<String, Any> {
     return mapOf(
         "dateOfExpiry" to (Date_of_Expiry ?: "N/A"),
         "phoneNumber" to (Phone_Number ?: "N/A"),
-        "regionCityAdmin" to (Region_City_Admin ?: "N/A"),
-        "zoneCityAdminSubCity" to (Zone_City_Admin_Sub_City ?: "N/A"),
-        "woredaCityAdminKebele" to (Woreda_City_Admin_Kebele ?: "N/A"),
+        "region" to (Region ?: "N/A"),
+        "zone" to (Zone ?: "N/A"),
+        "woreda" to (Woreda ?: "N/A"),
         "fin" to (FIN ?: "N/A"),
     )
 }

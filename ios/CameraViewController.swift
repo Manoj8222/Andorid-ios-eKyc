@@ -30,6 +30,7 @@ struct OcrResponseFront {
 
 struct OcrResponseBack: Codable {
     let dateOfExpiry: String
+    let dateOfIssue: String
     let phoneNumber: String
     let region: String
     let zone: String

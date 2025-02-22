@@ -326,8 +326,9 @@ private func uploadImageToAPI(data: Data, referenceID: String) {
                     return
                 }
                 let ocrResponse = OcrResponseBack(
-                        dateOfExpiry: backObject["Date_of_Expiry"] as? String ?? "N/A",
-                        phoneNumber: backObject["Phone_Number"] as? String ?? "N/A",
+                        dateOfExpiry: backObject["Date_of_Expiry"] as? String ?? "",
+                        dateOfIssue: backObject["Date_of_Issue"] as? String ?? "",
+                        phoneNumber: backObject["Phone_Number"] as? String ?? "",
                         region: backObject["Region"] as? String ?? "N/A",
                         zone: backObject["Zone"] as? String ?? "N/A",
                         woreda: backObject["Woreda"] as? String ?? "N/A",
