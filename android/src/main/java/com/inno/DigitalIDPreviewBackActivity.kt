@@ -146,6 +146,7 @@ class DigitalIDPreviewBackActivity : AppCompatActivity() {
             addResultRow(frontResultsCard, "Sex", data.sex)
             addResultRow(frontResultsCard, "Nationality", data.nationality)
             addResultRow(frontResultsCard, "Expiry Date", data.expiryDate)
+
         }
 
         scrollContent.addView(frontResultsCard)
@@ -184,10 +185,11 @@ class DigitalIDPreviewBackActivity : AppCompatActivity() {
         digitalBack?.let { data ->
             addResultRow(backResultsCard, "FIN", data.FIN)
             addResultRow(backResultsCard, "Date of Expiry", data.Date_of_Expiry)
+            addResultRow(backResultsCard, "Date of Issue", data.Date_of_Issue)
             addResultRow(backResultsCard, "Phone Number", data.Phone_Number)
-            addResultRow(backResultsCard, "Region/City Admin", data.Region_City_Admin)
-            addResultRow(backResultsCard, "Zone/City Admin/Sub City", data.Zone_City_Admin_Sub_City)
-            addResultRow(backResultsCard, "Woreda/City Admin/Kebele", data.Woreda_City_Admin_Kebele)
+            addResultRow(backResultsCard, "Region", data.Region)
+            addResultRow(backResultsCard, "Zone", data.Zone)
+            addResultRow(backResultsCard, "Woreda", data.Woreda)
         }
 
         scrollContent.addView(backResultsCard)
