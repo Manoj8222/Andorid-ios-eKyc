@@ -1,6 +1,6 @@
 {
   "name": "react-native-inno",
-  "version": "2.0.1",
+  "version": "2.0.2",
   "description": "react-native-inno-liveliness",
   "source": "./src/index.tsx",
   "main": "./lib/commonjs/index.js",
@@ -83,7 +83,7 @@
     "react-native-builder-bob": "^0.32.0",
     "release-it": "^17.10.0",
     "turbo": "^1.10.7",
-    "typescript": "^5.2.2"
+    "typescript": "^5.1.6"
   },
   "resolutions": {
     "@types/react": "^18.2.44"

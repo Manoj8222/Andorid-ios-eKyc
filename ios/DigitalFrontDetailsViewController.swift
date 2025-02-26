@@ -9,12 +9,27 @@ class DigitalFrontDetailsViewController: UIViewController {
     private let frontOcrContainer = UIView() // Renamed for clarity
     private let frontOcrDataStackView = UIStackView() // Renamed for clarity
     private let uploadBackButton = UIButton(type: .system)
+    var inactivityTimer: Timer?
 
     override func viewDidLoad() {
         super.viewDidLoad()
         setupUI()
         setupGradientBackground()
         displayData()
+    }
+        override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        resetInactivityTimer()  // Start the initial timer
+    }
+
+        override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        inactivityTimer?.invalidate()
+        inactivityTimer = nil
+    }
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        super.touchesBegan(touches, with: event)
+        startInactivityTimer()  // Reset the timer on interaction
     }
 
     private func setupUI() {
@@ -101,6 +116,12 @@ class DigitalFrontDetailsViewController: UIViewController {
             uploadBackButton.widthAnchor.constraint(equalToConstant: 280),
             uploadBackButton.heightAnchor.constraint(equalToConstant: 55)
         ])
+    }
+
+        // ✅ Reset the timer for any other UI interactions (e.g., buttons)
+    @objc func someButtonTapped() {
+        resetInactivityTimer()
+        print("Button tapped")
     }
 
     private func displayData() {
@@ -234,4 +255,64 @@ class DigitalFrontDetailsViewController: UIViewController {
         }
         return rootViewController
     }
+
+
+    private func startInactivityTimer() {
+        // Invalidate the existing timer if any
+        inactivityTimer?.invalidate()
+
+        // Start a new timer for 3 minutes (180 seconds)
+        inactivityTimer = Timer.scheduledTimer(
+            timeInterval: 10,
+            // timeInterval: 180,
+            target: self,
+            selector: #selector(closeCameraAfterTimeout),
+            userInfo: nil,
+            repeats: false
+        )
+    }
+
+    // ✅ Stop the inactivity timer
+    private func stopInactivityTimer() {
+        inactivityTimer?.invalidate()
+        inactivityTimer = nil
+    }
+
+    // ✅ Close the camera after 3 minutes
+    @objc private func closeCameraAfterTimeout() {
+//        print("⚠️ Camera closed due to inactivity")
+
+        // Stop the camera session
+//        captureSession.stopRunning()
+
+        // Dismiss the current view controller
+        DispatchQueue.main.async {
+            self.dismiss(animated: true) {
+                // Optionally, close any other native screens
+                self.closeAllNativeScreens()
+            }
+        }
+    }
+
+    // ✅ Close all native screens
+    private func closeAllNativeScreens() {
+        if let rootViewController = UIApplication.shared.windows.first?.rootViewController {
+            rootViewController.dismiss(animated: true, completion: nil)
+        }
+    }
+
+    private func resetInactivityTimer() {
+        // Invalidate the existing timer
+        inactivityTimer?.invalidate()
+        // Start a new timer
+        inactivityTimer = Timer.scheduledTimer(
+            timeInterval: 10,  // 10 seconds (for testing)
+            target: self,
+            selector: #selector(closeCameraAfterTimeout),
+            userInfo: nil,
+            repeats: false
+        )
+        print("Timer reset due to activity")
+    }
+
 }

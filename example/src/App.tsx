@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { openSelectionScreen } from 'react-native-inno';
 import {
-  View,
   StyleSheet,
   Alert,
   SafeAreaView,
@@ -85,7 +84,7 @@ export default function App({ initialProps }) {
       />
     );
   }
-  if (!referenceID && !clicked) {
+  if (referenceID!='null') {
     return (
       <SafeAreaView style={styles.container}>
         <TouchableOpacity style={styles.button} onPress={startEkyc}>
