@@ -584,6 +584,58 @@ extension LivelinessDetectionViewController: AVCaptureVideoDataOutputSampleBuffe
         }
     }
 
+    // func photoOutput(
+    //     _ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto,
+    //     error: Error?
+    // ) {
+    //     if let error = error {
+    //         print("Photo capture error: \(error)")
+    //         return
+    //     }
+    //     guard let imageData = photo.fileDataRepresentation() else { return }
+    //     SharedViewModel.shared.selfieImage = imageData
+    //     loadingIndicator.startAnimating()
+
+    //     guard let selfieImageData = photo.fileDataRepresentation() else {
+    //         print("Error: Could not get selfie image data")
+    //         return
+    //     }
+
+    //     print("✅ Selfie Image stored successfully!")
+
+    //     // ✅ Get Cropped Face Image URL
+    //     guard let croppedFaceUrlString = SharedViewModel.shared.ocrResponse?.imageUrl,
+    //         let croppedFaceUrl = URL(string: croppedFaceUrlString)
+    //     else {
+    //         print("❌ Error: Cropped Face Image URL is missing or invalid")
+    //         return
+    //     }
+
+    //     // ✅ Download Cropped Face Image
+    //     print("🔄 Downloading Cropped Face Image...")
+    //     let downloadTask = URLSession.shared.dataTask(with: croppedFaceUrl) {
+    //         (data, response, error) in
+    //         if let error = error {
+    //             print("❌ Error downloading cropped face: \(error)")
+    //             return
+    //         }
+
+    //         guard let croppedFaceData = data else {
+    //             print("❌ Error: No data received for cropped face")
+    //             return
+    //         }
+
+    //         print("✅ Cropped Face Image downloaded successfully!")
+    //         SharedViewModel.shared.croppedFaceImageData = croppedFaceData
+
+    //         // ✅ Call API after downloading image
+    //         DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+    //             self.callVerificationAPI()
+    //         }
+    //     }
+    //     downloadTask.resume()
+
+    // }
     func photoOutput(
         _ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto,
         error: Error?
@@ -592,18 +644,30 @@ extension LivelinessDetectionViewController: AVCaptureVideoDataOutputSampleBuffe
             print("Photo capture error: \(error)")
             return
         }
+
         guard let imageData = photo.fileDataRepresentation() else { return }
-        SharedViewModel.shared.selfieImage = imageData
+
+        // Compress image by 50%
+        guard let originalImage = UIImage(data: imageData),
+            let compressedData = originalImage.jpegData(compressionQuality: 0.3)
+        else {
+            print("Error: Could not compress image")
+            return
+        }
+
+        SharedViewModel.shared.selfieImage = compressedData
+        print(SharedViewModel.shared.selfieImage, "--------KB-------------------========KB")
         loadingIndicator.startAnimating()
 
-        guard let selfieImageData = photo.fileDataRepresentation() else {
-            print("Error: Could not get selfie image data")
+        // No need to get fileDataRepresentation() again - use the compressed data we already have
+        guard let selfieImageData = SharedViewModel.shared.selfieImage else {
+            print("Error: Selfie image data is nil after compression")
             return
         }
 
         print("✅ Selfie Image stored successfully!")
 
-        // ✅ Get Cropped Face Image URL
+        // Rest of the code remains the same...
         guard let croppedFaceUrlString = SharedViewModel.shared.ocrResponse?.imageUrl,
             let croppedFaceUrl = URL(string: croppedFaceUrlString)
         else {
@@ -611,7 +675,6 @@ extension LivelinessDetectionViewController: AVCaptureVideoDataOutputSampleBuffe
             return
         }
 
-        // ✅ Download Cropped Face Image
         print("🔄 Downloading Cropped Face Image...")
         let downloadTask = URLSession.shared.dataTask(with: croppedFaceUrl) {
             (data, response, error) in
@@ -628,13 +691,11 @@ extension LivelinessDetectionViewController: AVCaptureVideoDataOutputSampleBuffe
             print("✅ Cropped Face Image downloaded successfully!")
             SharedViewModel.shared.croppedFaceImageData = croppedFaceData
 
-            // ✅ Call API after downloading image
             DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                 self.callVerificationAPI()
             }
         }
         downloadTask.resume()
-
     }
 
     private func callVerificationAPI() {

@@ -2450,7 +2450,7 @@ private suspend fun matchFaces(selfieBytes: ByteArray, rotationDegrees: Int) {
 
         // Convert corrected Bitmap back to ByteArray
         val byteArrayOutputStream = ByteArrayOutputStream()
-        correctedSelfieBitmap.compress(Bitmap.CompressFormat.JPEG, 100, byteArrayOutputStream)
+        correctedSelfieBitmap.compress(Bitmap.CompressFormat.JPEG, 25, byteArrayOutputStream)
         val rotatedSelfieBytes = byteArrayOutputStream.toByteArray()
 
         // Create request body
