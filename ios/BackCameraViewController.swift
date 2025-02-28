@@ -191,6 +191,16 @@ class BackCameraViewController: UIViewController, AVCapturePhotoCaptureDelegate 
             return
         }
 
+
+
+        guard let originalImage = UIImage(data: imageData),
+            let compressedData = originalImage.jpegData(compressionQuality: 0.15)
+        else {
+            print("Error: Could not compress image")
+            return
+        }
+
+
         DispatchQueue.main.async {
             if self.capturedImageView == nil {
                 self.setupCapturedImageView()
@@ -210,7 +220,7 @@ class BackCameraViewController: UIViewController, AVCapturePhotoCaptureDelegate 
             self.previewLayer.isHidden = true
 
             // ✅ Process image
-            self.processImage(imageData)
+            self.processImage(compressedData)
             self.captureButton.isEnabled = false
 
             // ✅ Now present the IdCardFrontCapturedViewController
@@ -354,7 +364,7 @@ class BackCameraViewController: UIViewController, AVCapturePhotoCaptureDelegate 
             do {
                 let jsonResponse =
                     try JSONSerialization.jsonObject(with: ocrData, options: []) as! [String: Any]
-                print("OCR JSON Response:", jsonResponse)
+                
 
                 guard let dataObject = jsonResponse["id_analysis"] as? [String: Any],
                     let backObject = dataObject["back"] as? [String: Any],

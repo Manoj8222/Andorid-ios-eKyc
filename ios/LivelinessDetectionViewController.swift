@@ -647,7 +647,6 @@ extension LivelinessDetectionViewController: AVCaptureVideoDataOutputSampleBuffe
 
         guard let imageData = photo.fileDataRepresentation() else { return }
 
-        // Compress image by 50%
         guard let originalImage = UIImage(data: imageData),
             let compressedData = originalImage.jpegData(compressionQuality: 0.3)
         else {

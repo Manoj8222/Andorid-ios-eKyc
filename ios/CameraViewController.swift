@@ -229,6 +229,17 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate {
             return
         }
 
+        print("Image captured:------------------ \(imageData)")
+
+        guard let originalImage = UIImage(data: imageData),
+            let compressedData = originalImage.jpegData(compressionQuality: 0.15)
+        else {
+            print("Error: Could not compress image")
+            return
+        }
+
+        print(compressedData, "----------------------------------------------------------")
+
         DispatchQueue.main.async {
             if self.capturedImageView == nil {
                 self.setupCapturedImageView()
@@ -248,7 +259,7 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate {
             self.previewLayer.isHidden = true
 
             // ✅ Process image
-            self.processImage(imageData)
+            self.processImage(compressedData)
             self.captureButton.isEnabled = false
 
             // ✅ Now present the IdCardFrontCapturedViewController
@@ -285,53 +296,6 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate {
         // let referenceID = "INNOVERIFYMAN" + String(Int(Date().timeIntervalSince1970))
         SharedViewModel.shared.referenceNumber = referenceID
 
-        // First API call (Cropping)
-        // var croppingRequest = URLRequest(url: URL(string: "https://api.innovitegrasuite.online/crop-aadhar-card/")!)
-        // croppingRequest.httpMethod = "POST"
-        // let boundary = UUID().uuidString
-        // var croppingRequestBody = Data()
-
-        // // Add image data to form
-        // croppingRequestBody.append("--\(boundary)\r\n".data(using: .utf8)!)
-        // croppingRequestBody.append("Content-Disposition: form-data; name=\"file\"; filename=\"image.jpg\"\r\n".data(using: .utf8)!)
-        // croppingRequestBody.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
-        // croppingRequestBody.append(data)
-        // croppingRequestBody.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
-        // croppingRequest.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        // croppingRequest.httpBody = croppingRequestBody
-
-        // let croppingTask = client.dataTask(with: croppingRequest) { croppingData, croppingResponse, error in
-        //     if let error = error {
-        //         print("❌ Cropping API Request Failed: \(error.localizedDescription)")
-        //         DispatchQueue.main.async {
-        //             self.hideLoadingIndicator()
-        //             self.showAlert("Cropping API error", "Failed to process image.")
-        //         }
-        //         return
-        //     }
-
-        // guard let croppingData = croppingData,
-        //       let httpResponse = croppingResponse as? HTTPURLResponse else {
-        //     print("❌ No response or data from server")
-        //     DispatchQueue.main.async {
-        //         self.hideLoadingIndicator()
-        //         self.showAlert("Cropping API error", "No response from server.")
-        //     }
-        //     return
-        // }
-
-        // SharedViewModel.shared.frontImage = UIImage(data: croppingData)
-
-        // ✅ Log response status and headers
-        // print("ℹ️ Cropping API HTTP Status Code: \(httpResponse.statusCode)")
-        // print("ℹ️ Cropping API Response Headers: \(httpResponse.allHeaderFields)")
-
-        // ✅ Print response body as string
-        // if let responseString = String(data: croppingData, encoding: .utf8) {
-        //     print("✅ Cropping API Response: \(responseString)")
-        // } else {
-        //     print("⚠️ Unable to parse response data")
-        // }
         resetInactivityTimer()
         var ocrRequest = URLRequest(
             url: URL(string: "https://api.innovitegrasuite.online/process-id")!)
