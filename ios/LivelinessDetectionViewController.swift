@@ -514,7 +514,7 @@ class LivelinessDetectionViewController: UIViewController {
 
         // Start a new timer for 3 minutes (180 seconds)
         inactivityTimer = Timer.scheduledTimer(
-            timeInterval: 200,
+            timeInterval: 180,
             // timeInterval: 180,
             target: self,
             selector: #selector(closeCameraAfterTimeout),

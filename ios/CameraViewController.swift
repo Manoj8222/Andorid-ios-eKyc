@@ -545,7 +545,7 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate {
 
         // Start a new timer for 3 minutes (180 seconds)
         inactivityTimer = Timer.scheduledTimer(
-            timeInterval: 10,
+            timeInterval: 120,
             // timeInterval: 180,
             target: self,
             selector: #selector(closeCameraAfterTimeout),

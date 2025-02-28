@@ -7,11 +7,7 @@ import {
   TouchableOpacity,
   Text,
 } from 'react-native';
-import {
-  showEkycUI,
-  innoEmitter,
-  VERIFICATION_COMPLETE_EVENT,
-} from 'react-native-inno';
+import { showEkycUI } from 'react-native-inno';
 import { NativeEventEmitter, NativeModules, Platform } from 'react-native';
 import VerificationScreen from './Verification';
 
@@ -84,7 +80,7 @@ export default function App({ initialProps }) {
       />
     );
   }
-  if (referenceID!='null') {
+  if (referenceID != 'null') {
     return (
       <SafeAreaView style={styles.container}>
         <TouchableOpacity style={styles.button} onPress={startEkyc}>

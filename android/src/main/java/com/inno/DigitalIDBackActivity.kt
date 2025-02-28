@@ -380,7 +380,9 @@ class DigitalIDBackActivity : AppCompatActivity() {
                           Region = backData.optString("Region","N/A"),
                           Zone =backData.optString("Zone","N/A"),
                           Woreda =backData.optString("Woreda","N/A"),
-                          FIN = fin
+                          FIN = fin,
+                          Nationality = backData.optString("Nationality","N/A"),
+                          CroppedId = backData.optString("cropped_id","N/A")
                         )
 
                 Log.d("PassingOCR", "Passing OCR Data to Results Activity: $ocrBackData")

@@ -1,4 +1,4 @@
-// im getting error like this   /Users/innovitegrasolutions/Documents/cam-ocr-lib/ios/CamOcrLib.swift:336:12 Initializer for conditional binding must have Optional type, not 'AVCapturePhotoOutput'
+// /Users/innovitegrasolutions/Documents/cam-ocr-lib/ios/CamOcrLib.swift:336:12 Initializer for conditional binding must have Optional type, not 'AVCapturePhotoOutput'
 // for the code for capturing the photo func openCamera() {
 //         captureSession = AVCaptureSession()
 //         captureSession.sessionPreset = .photo
@@ -88,7 +88,6 @@
 //         ])
 //     }
 
-
 //     @objc func capturePhoto() {
 //         let photoSettings = AVCapturePhotoSettings()
 //         if let photoOutput = AVCapturePhotoOutput() {
@@ -108,4 +107,4 @@
 //         } else {
 //             reject?("CAPTURE_ERROR", "Failed to capture image", error)
 //         }
-//     } fix this
+//     }

@@ -218,58 +218,6 @@ class UploadBackDigitalIDViewController: UIViewController, UIImagePickerControll
             fatalError("Unable to encode credentials")
         }
         let base64Credentials = credentialsData.base64EncodedString()
-
-        // let referenceID = "INNOVERIFYMAN" + String(Int(Date().timeIntervalSince1970))
-        // SharedViewModel.shared.referenceNumber = referenceID
-
-        // // First API call (Cropping)
-        // var croppingRequest = URLRequest(url: URL(string: "https://api.innovitegrasuite.online/crop-aadhar-card/")!)
-        // croppingRequest.httpMethod = "POST"
-        // let boundary = UUID().uuidString
-        // var croppingRequestBody = Data()
-
-        // // Add image data to form
-        // croppingRequestBody.append("--\(boundary)\r\n".data(using: .utf8)!)
-        // croppingRequestBody.append("Content-Disposition: form-data; name=\"file\"; filename=\"image.jpg\"\r\n".data(using: .utf8)!)
-        // croppingRequestBody.append("Content-Type: image/jpeg\r\n\r\n".data(using: .utf8)!)
-        // croppingRequestBody.append(data)
-        // croppingRequestBody.append("\r\n--\(boundary)--\r\n".data(using: .utf8)!)
-        // croppingRequest.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        // croppingRequest.httpBody = croppingRequestBody
-
-        // let croppingTask = client.dataTask(with: croppingRequest) { croppingData, croppingResponse, error in
-        //     if let error = error {
-        //         print("❌ Cropping API Request Failed: \(error.localizedDescription)")
-        //         DispatchQueue.main.async {
-        //             self.hideLoadingIndicator()
-        //             self.showAlert("Cropping API error", "Failed to process image.")
-        //         }
-        //         return
-        //     }
-
-        //     guard let croppingData = croppingData,
-        //           let httpResponse = croppingResponse as? HTTPURLResponse else {
-        //         print("❌ No response or data from server")
-        //         DispatchQueue.main.async {
-        //             self.hideLoadingIndicator()
-        //             self.showAlert("Cropping API error", "No response from server.")
-        //         }
-        //         return
-        //     }
-
-        //     SharedViewModel.shared.backImage = UIImage(data: croppingData)
-
-        //     // ✅ Log response status and headers
-        //     print("ℹ️ Cropping API HTTP Status Code: \(httpResponse.statusCode)")
-        //     print("ℹ️ Cropping API Response Headers: \(httpResponse.allHeaderFields)")
-
-        //     // ✅ Print response body as string
-        //     if let responseString = String(data: croppingData, encoding: .utf8) {
-        //         print("✅ Cropping API Response: \(responseString)")
-        //     } else {
-        //         print("⚠️ Unable to parse response data")
-        //     }
-
         var ocrRequest = URLRequest(
             url: URL(string: "https://api.innovitegrasuite.online/process-id")!)
         ocrRequest.httpMethod = "POST"
@@ -375,31 +323,9 @@ class UploadBackDigitalIDViewController: UIViewController, UIImagePickerControll
                     let frontBackCapturedVC = DigitalFrontDetailsViewController()
                     frontBackCapturedVC.modalPresentationStyle = .fullScreen
                     self.present(frontBackCapturedVC, animated: true, completion: nil)
-                    // let frontBackCapturedViewController = IdCardFrontBackCapturedViewController()
-                    // frontBackCapturedViewController.modalPresentationStyle = .fullScreen
-
-                    // if let topVC = self.getTopViewController(), topVC.view.window != nil {
-                    //     topVC.present(frontBackCapturedViewController, animated: true, completion: {
-                    //         print("✅ Successfully presented IdCardFrontBackCapturedViewController")
-                    //     })
-                    // } else {
-                    //     print("❌ Unable to find the visible view controller to present")
-                    // }
+                    
                 }
-                // DispatchQueue.main.async {
-                //     self.closeFrontCapturedScreen()
-
-                //     let capturedViewController = IdCardFrontCapturedViewController()
-                //     capturedViewController.modalPresentationStyle = .fullScreen
-
-                //     if let topVC = getTopViewController(), topVC.view.window != nil {
-                //         topVC.present(capturedViewController, animated: true, completion: {
-                //             print("✅ Successfully presented IdCardFrontCapturedViewController")
-                //         })
-                //     } else {
-                //         print("❌ Unable to find the visible view controller to present")
-                //     }
-                // }
+                
             } catch {
                 DispatchQueue.main.async {
                     self.showAlert("Parsing Error", "Failed to parse OCR response.")
@@ -407,9 +333,6 @@ class UploadBackDigitalIDViewController: UIViewController, UIImagePickerControll
             }
         }
         ocrTask.resume()
-        // }
-
-        // croppingTask.resume()
     }
 
     func showAlert(_ title: String, _ message: String) {
@@ -434,7 +357,7 @@ class UploadBackDigitalIDViewController: UIViewController, UIImagePickerControll
 
         // Start a new timer for 3 minutes (180 seconds)
         inactivityTimer = Timer.scheduledTimer(
-            timeInterval: 10,
+            timeInterval: 120,
             // timeInterval: 180,
             target: self,
             selector: #selector(closeCameraAfterTimeout),
@@ -487,33 +410,3 @@ class UploadBackDigitalIDViewController: UIViewController, UIImagePickerControll
     }
 
 }
-//extension UIColor {
-//    convenience init(hex: String) {
-//        var hexSanitized = hex.trimmingCharacters(in: .whitespacesAndNewlines)
-//        hexSanitized = hexSanitized.replacingOccurrences(of: "#", with: "")
-//
-//        var rgb: UInt64 = 0
-//        Scanner(string: hexSanitized).scanHexInt64(&rgb)
-//
-//        let red = CGFloat((rgb >> 16) & 0xFF) / 255.0
-//        let green = CGFloat((rgb >> 8) & 0xFF) / 255.0
-//        let blue = CGFloat(rgb & 0xFF) / 255.0
-//
-//        self.init(red: red, green: green, blue: blue, alpha: 1.0)
-//    }
-//    func getTopViewController(_ rootViewController: UIViewController? = UIApplication.shared.connectedScenes
-//    .compactMap { ($0 as? UIWindowScene)?.keyWindow }
-//    .first?.rootViewController) -> UIViewController? {
-//
-//    if let presentedViewController = rootViewController?.presentedViewController {
-//        return getTopViewController(presentedViewController)
-//    }
-//    if let navigationController = rootViewController as? UINavigationController {
-//        return getTopViewController(navigationController.visibleViewController)
-//    }
-//    if let tabBarController = rootViewController as? UITabBarController {
-//        return getTopViewController(tabBarController.selectedViewController)
-//    }
-//    return rootViewController
-//}
-//}

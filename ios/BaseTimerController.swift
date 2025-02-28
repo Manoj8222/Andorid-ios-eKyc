@@ -3,7 +3,7 @@ import UIKit
 class BaseTimerController: UIViewController {
     // Timer Properties
     var inactivityTimer: Timer?
-    var inactivityTimeout: TimeInterval = 10  // Default 10 seconds (for testing)
+    var inactivityTimeout: TimeInterval = 120  // Default 10 seconds (for testing)
 
     // MARK: - Lifecycle Methods
     override func viewDidAppear(_ animated: Bool) {

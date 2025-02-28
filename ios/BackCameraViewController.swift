@@ -460,7 +460,7 @@ class BackCameraViewController: UIViewController, AVCapturePhotoCaptureDelegate 
         inactivityTimer?.invalidate()
 
         inactivityTimer = Timer.scheduledTimer(
-            timeInterval: 10,
+            timeInterval: 120,
             target: self,
             selector: #selector(closeCameraAfterTimeout),
             userInfo: nil,
