@@ -1239,45 +1239,22 @@ class BackIdCardActivity : BaseTimeoutActivity() {
         captureButton.isEnabled = false
         progressBar.visibility = View.VISIBLE
 
-        val tempFile = File(externalCacheDir, "temp_image.jpg").also {
-            Log.d("CaptureBack", "Temporary file created at: ${it.absolutePath}")
-        }
-
-        val outputOptions = ImageCapture.OutputFileOptions.Builder(tempFile).build()
-
         // Play shutter sound before taking picture
         mediaActionSound.play(MediaActionSound.SHUTTER_CLICK)
 
         Log.d("CaptureBack", "Initiating photo capture...")
         imageCapture.takePicture(
-            outputOptions,
             ContextCompat.getMainExecutor(this),
-            object : ImageCapture.OnImageSavedCallback {
-                override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+            object : ImageCapture.OnImageCapturedCallback() {
+                override fun onCaptureSuccess(imageProxy: ImageProxy) {
                     Log.d("CaptureBack", "Photo captured successfully. Stopping camera preview...")
 
-                    // Stop the camera preview
-                    val cameraProviderFuture = ProcessCameraProvider.getInstance(this@BackIdCardActivity)
-                    cameraProviderFuture.addListener({
-                        val cameraProvider = cameraProviderFuture.get()
-                        cameraProvider.unbindAll() // Unbind the camera preview
-                        Log.d("CaptureBack", "Camera preview stopped.")
-                    }, ContextCompat.getMainExecutor(this@BackIdCardActivity))
-
-                    // // Process the captured image
-                    // Log.d("CaptureBack", "Reading captured image into byte array...")
-                    // val byteArray = tempFile.readBytes().also {
-                    //     Log.d("CaptureBack", "Image read successfully. Size: ${it.size} bytes")
-                    // }
-
-                    // Log.d("CaptureBack", "Sending image to API...")
-                    // sendImageToApi(byteArray, viewModel,referenceNumber)
-
-                    val bitmap = BitmapFactory.decodeFile(tempFile.absolutePath) // Load the image as a Bitmap
+                    // Convert ImageProxy to Bitmap
+                    val bitmap = imageProxy.toBitmap()
 
                     // Compress the bitmap (JPEG format, 25% quality)
                     val outputStream = ByteArrayOutputStream()
-                    bitmap.compress(Bitmap.CompressFormat.JPEG, 25, outputStream)  
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 25, outputStream)
 
                     val compressedByteArray = outputStream.toByteArray().also {
                         Log.d("CaptureBack", "Compressed image size: ${it.size} bytes")
@@ -1286,6 +1263,16 @@ class BackIdCardActivity : BaseTimeoutActivity() {
                     // Send compressed image to API
                     sendImageToApi(compressedByteArray, viewModel, referenceNumber)
 
+                    // Close the ImageProxy
+                    imageProxy.close()
+
+                    // Stop the camera preview
+                    val cameraProviderFuture = ProcessCameraProvider.getInstance(this@BackIdCardActivity)
+                    cameraProviderFuture.addListener({
+                        val cameraProvider = cameraProviderFuture.get()
+                        cameraProvider.unbindAll() // Unbind the camera preview
+                        Log.d("CaptureBack", "Camera preview stopped.")
+                    }, ContextCompat.getMainExecutor(this@BackIdCardActivity))
                 }
 
                 override fun onError(exception: ImageCaptureException) {
@@ -1300,6 +1287,14 @@ class BackIdCardActivity : BaseTimeoutActivity() {
             }
         )
     }
+
+// Extension function to convert ImageProxy to Bitmap
+fun ImageProxy.toBitmap(): Bitmap {
+    val planeProxy = planes[0]
+    val buffer = planeProxy.buffer
+    val bytes = ByteArray(buffer.capacity()).also { buffer.get(it) }
+    return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+}
 
     private fun sendImageToApi(byteArray: ByteArray, viewModel: SharedViewModel, referenceNumber: String) {
     Log.d("sendImageToApi", "Received byte array of size: ${byteArray.size} bytes")
@@ -1935,6 +1930,8 @@ class Liveliness : BaseTimeoutActivity() {
     private lateinit var orientationEventListener: OrientationEventListener ;
     private var isPortraitUp = true
     private var orientationDialog: AlertDialog? = null
+    private val BLINK_THRESHOLD = 0.6f  // Higher threshold for partial eye closure
+    private var isEyeOpen = true // Tracks if eyes are currently open
 
     private var headMovementTasks = mutableMapOf(
         "Blink detected" to false,
@@ -2020,28 +2017,28 @@ class Liveliness : BaseTimeoutActivity() {
         }
 
 
-    // Enable the orientation listener
-    orientationEventListener?.enable()
+        // Enable the orientation listener
+        orientationEventListener?.enable()
+        }
+
+
+    private fun restartFaceMatchingProcess() {
+        // Reset the face detection tasks
+        resetTasks()
+
+        // Restart the camera
+        startCamera()
+
+        isPictureTaken = false
+
+        // Clear the overlay image
+        runOnUiThread {
+            overlayImageView.setImageBitmap(null)
+        }
+
+        // Optionally, you can also reset the instruction text
+        showInstructionText("Please blink your eyes")
     }
-
-
-private fun restartFaceMatchingProcess() {
-    // Reset the face detection tasks
-    resetTasks()
-
-    // Restart the camera
-    startCamera()
-
-    isPictureTaken = false
-
-    // Clear the overlay image
-    runOnUiThread {
-        overlayImageView.setImageBitmap(null)
-    }
-
-    // Optionally, you can also reset the instruction text
-    showInstructionText("Please blink your eyes")
-}
 
     private fun initializeViewModel() {
         sharedViewModel = ViewModelProvider(
@@ -2109,117 +2106,123 @@ private fun restartFaceMatchingProcess() {
 
 
     private fun startCamera() {
-      cameraProviderFuture = ProcessCameraProvider.getInstance(this)
+        cameraProviderFuture = ProcessCameraProvider.getInstance(this)
 
-      cameraProviderFuture.addListener({
-          val cameraProvider = cameraProviderFuture.get()
+        cameraProviderFuture.addListener({
+            val cameraProvider = cameraProviderFuture.get()
 
-          // Unbind all previous use cases
-        cameraProvider.unbindAll()
+            // Unbind all previous use cases
+            cameraProvider.unbindAll()
 
 
-          // Preview use case
-          val preview = Preview.Builder()
-              .build()
-              .also {
-                  it.setSurfaceProvider(previewView.surfaceProvider)
-              }
+            // Preview use case
+            val preview = Preview.Builder()
+                .build()
+                .also {
+                    it.setSurfaceProvider(previewView.surfaceProvider)
+                }
 
-          // Image capture use case
-          imageCapture = ImageCapture.Builder()
-              .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
-              .build()
+            // Image capture use case
+            imageCapture = ImageCapture.Builder()
+                .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+                .build()
 
-          // Image analysis use case
-          imageAnalyzer = ImageAnalysis.Builder()
-              .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-              .build()
-              .also {
-                  it.setAnalyzer(cameraExecutor, FaceAnalyzer())
-              }
+            // Image analysis use case
+            imageAnalyzer = ImageAnalysis.Builder()
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .build()
+                .also {
+                    it.setAnalyzer(cameraExecutor, FaceAnalyzer())
+                }
 
-          // Select front camera
-          val cameraSelector = CameraSelector.Builder()
-              .requireLensFacing(CameraSelector.LENS_FACING_FRONT)
-              .build()
+            // Select front camera
+            val cameraSelector = CameraSelector.Builder()
+                .requireLensFacing(CameraSelector.LENS_FACING_FRONT)
+                .build()
 
-          try {
-              cameraProvider.unbindAll()
-              cameraProvider.bindToLifecycle(
-                  this,
-                  cameraSelector,
-                  preview,
-                  imageCapture,
-                  imageAnalyzer
-              )
-          } catch (e: Exception) {
-              Log.e("CameraX", "Use case binding failed", e)
-              showErrorDialog("Camera initialization failed: ${e.message}")
-          }
-      }, ContextCompat.getMainExecutor(this))
+            try {
+                cameraProvider.unbindAll()
+                cameraProvider.bindToLifecycle(
+                    this,
+                    cameraSelector,
+                    preview,
+                    imageCapture,
+                    imageAnalyzer
+                )
+            } catch (e: Exception) {
+                Log.e("CameraX", "Use case binding failed", e)
+                showErrorDialog("Camera initialization failed: ${e.message}")
+            }
+        }, ContextCompat.getMainExecutor(this))
     }
 
     private inner class FaceAnalyzer : ImageAnalysis.Analyzer {
-    private val faceDetector = FaceDetection.getClient(
-        FaceDetectorOptions.Builder()
-            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
-            .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
-            .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
-            .build()
-    )
+        private val faceDetector = FaceDetection.getClient(
+            FaceDetectorOptions.Builder()
+                .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)
+                .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)
+                .setClassificationMode(FaceDetectorOptions.CLASSIFICATION_MODE_ALL)
+                .build()
+        )
 
-    @SuppressLint("UnsafeOptInUsageError")
-    override fun analyze(imageProxy: ImageProxy) {
-        val mediaImage = imageProxy.image
-        if (mediaImage != null && !isDetectingFaces &&
-            System.currentTimeMillis() - lastDetectionTime >= detectionInterval
-        ) {
-            val image = InputImage.fromMediaImage(
-                mediaImage,
-                imageProxy.imageInfo.rotationDegrees
-            )
+        @SuppressLint("UnsafeOptInUsageError")
+        override fun analyze(imageProxy: ImageProxy) {
+            val currentTime = System.currentTimeMillis()
 
-            isDetectingFaces = true
-            lastDetectionTime = System.currentTimeMillis()
+            // Process frames only every 100ms
+            if (currentTime - lastDetectionTime >= 100) {
+                val mediaImage = imageProxy.image
+                if (mediaImage != null && !isDetectingFaces) {
+                    val image = InputImage.fromMediaImage(
+                        mediaImage,
+                        imageProxy.imageInfo.rotationDegrees
+                    )
 
-            faceDetector.process(image)
-                .addOnSuccessListener { faces ->
-                    if (faces.isEmpty()) {
-                        showInstructionText("No face detected. Please position your face in the frame.")
-                        if (headMovementTasks.any { it.value }) {
-                            resetTasks()
-                            Log.d("FaceDetection", "Face lost - progress reset")
+                    isDetectingFaces = true
+                    lastDetectionTime = currentTime
+
+                    faceDetector.process(image)
+                        .addOnSuccessListener { faces ->
+                            if (faces.isEmpty()) {
+                                showInstructionText("No face detected. Please position your face in the frame.")
+                                if (headMovementTasks.any { it.value }) {
+                                    resetTasks()
+                                    Log.d("FaceDetection", "Face lost - progress reset")
+                                }
+                                drawFacesOnOverlay(emptyList())
+                            } else {
+                                val primaryFace = faces.maxByOrNull { face ->
+                                    val size = face.boundingBox.width() * face.boundingBox.height()
+                                    val centerDistance = calculateCenterProximity(face.boundingBox)
+                                    size - centerDistance
+                                }
+
+                                if (primaryFace != null) {
+                                    processDetectedFace(primaryFace)
+                                    drawFacesOnOverlay(listOf(primaryFace))
+                                } else {
+                                    drawFacesOnOverlay(emptyList())
+                                }
+                            }
                         }
-                        drawFacesOnOverlay(emptyList())
-                    } else {
-                        val primaryFace = faces.maxByOrNull { face ->
-                            val size = face.boundingBox.width() * face.boundingBox.height()
-                            val centerDistance = calculateCenterProximity(face.boundingBox)
-                            size - centerDistance
+                        .addOnFailureListener { e ->
+                            Log.e("FaceDetection", "Face detection failed", e)
                         }
-
-                        if (primaryFace != null) {
-                            processDetectedFace(primaryFace)
-                            drawFacesOnOverlay(listOf(primaryFace))
-                        } else {
-                            drawFacesOnOverlay(emptyList())
+                        .addOnCompleteListener {
+                            isDetectingFaces = false
+                            imageProxy.close()
                         }
-                    }
-                }
-                .addOnFailureListener { e ->
-                    Log.e("FaceDetection", "Face detection failed", e)
-                }
-                .addOnCompleteListener {
-                    isDetectingFaces = false
+                } else {
                     imageProxy.close()
                 }
-        } else {
-            imageProxy.close()
+            } else {
+                // Skip this frame if 100ms have not passed
+                imageProxy.close()
+            }
         }
     }
-}
 
-      private fun calculateCenterProximity(bounds: Rect): Int {
+    private fun calculateCenterProximity(bounds: Rect): Int {
         val screenWidth = overlayImageView.width
         val screenHeight = overlayImageView.height
         val centerX = screenWidth / 2
@@ -2233,102 +2236,120 @@ private fun restartFaceMatchingProcess() {
     }
 
 
-        private fun drawFacesOnOverlay(faces: List<Face>) {
-            try {
-                // Check if all tasks are completed
-                if (headMovementTasks.all { it.value }) {
-                    // Hide the bounding box by clearing the overlay
-                    runOnUiThread {
-                        overlayImageView.setImageBitmap(null)
-                    }
-                    return
-                }
-
-                // Create a mutable bitmap with the same dimensions as the overlayImageView
-                val mutableBitmap = Bitmap.createBitmap(
-                    overlayImageView.width,
-                    overlayImageView.height,
-                    Bitmap.Config.ARGB_8888
-                )
-                val canvas = Canvas(mutableBitmap)
-                val paint = Paint().apply {
-                    style = Paint.Style.STROKE
-                    strokeWidth = 8f
-                }
-
-                // If no faces are detected, clear the overlay
-                if (faces.isEmpty()) {
-                    runOnUiThread {
-                        overlayImageView.setImageBitmap(null)
-                    }
-                    return
-                }
-
-                // Draw bounding boxes for each detected face
-                for (face in faces) {
-                    val bounds = face.boundingBox
-
-                    // Shift the bounding box slightly to the right
-                    val adjustedBounds = Rect(
-                        bounds.left + 20,  // Move 20 pixels to the right
-                        bounds.top + 1500,
-                        bounds.right + 600,
-                        bounds.bottom + 200
-                    )
-
-                    paint.color = Color.GREEN
-                    canvas.drawRect(adjustedBounds, paint)
-                }
-
-                // Update the overlayImageView with the new bitmap on the UI thread
+    private fun drawFacesOnOverlay(faces: List<Face>) {
+        try {
+            // Check if all tasks are completed
+            if (headMovementTasks.all { it.value }) {
+                // Hide the bounding box by clearing the overlay
                 runOnUiThread {
-                    overlayImageView.setImageBitmap(mutableBitmap)
+                    overlayImageView.setImageBitmap(null)
                 }
+                return
+            }
 
-                // Check if all tasks are completed and take a picture if necessary
-                if (!isPictureTaken && headMovementTasks.all { it.value }) {
+            // Create a mutable bitmap with the same dimensions as the overlayImageView
+            val mutableBitmap = Bitmap.createBitmap(
+                overlayImageView.width,
+                overlayImageView.height,
+                Bitmap.Config.ARGB_8888
+            )
+            val canvas = Canvas(mutableBitmap)
+            val paint = Paint().apply {
+                style = Paint.Style.STROKE
+                strokeWidth = 8f
+            }
+
+            // If no faces are detected, clear the overlay
+            if (faces.isEmpty()) {
+                runOnUiThread {
+                    overlayImageView.setImageBitmap(null)
+                }
+                return
+            }
+
+            // Draw bounding boxes for each detected face
+            for (face in faces) {
+                val bounds = face.boundingBox
+
+                // Shift the bounding box slightly to the right
+                val adjustedBounds = Rect(
+                    bounds.left + 20,  // Move 20 pixels to the right
+                    bounds.top + 1500,
+                    bounds.right + 600,
+                    bounds.bottom + 200
+                )
+
+                paint.color = Color.GREEN
+                canvas.drawRect(adjustedBounds, paint)
+            }
+
+            // Update the overlayImageView with the new bitmap on the UI thread
+            runOnUiThread {
+                overlayImageView.setImageBitmap(mutableBitmap)
+            }
+
+            // Check if all tasks are completed and take a picture if necessary
+            if (!isPictureTaken && headMovementTasks.all { it.value }) {
+                takePicture()
+            }
+        } catch (e: Exception) {
+            Log.e("FaceOverlay", "Error drawing face overlay: ${e.message}")
+        }
+    }
+
+
+
+    private fun processDetectedFace(face: Face) {
+        val headEulerAngleY = face.headEulerAngleY
+        val leftEyeOpenProb = face.leftEyeOpenProbability ?: -0.9f
+        val rightEyeOpenProb = face.rightEyeOpenProbability ?: -0.9f
+
+        // Calculate average eye openness
+        val avgEyeOpenness = (leftEyeOpenProb + rightEyeOpenProb) / 2
+
+        // Detect blink
+        if (avgEyeOpenness < BLINK_THRESHOLD && isEyeOpen) {
+            // Transition from open to closed (blink detected)
+            isEyeOpen = false
+
+            // Update task only if blink is detected for the first time
+            if (!headMovementTasks["Blink detected"]!!) {
+                updateTask("Blink detected")
+                showInstructionText("Please move your head to the Left")
+                Log.d("FaceDetection", "Blink detected - Eye openness: $avgEyeOpenness")
+            }
+        } else if (avgEyeOpenness >= BLINK_THRESHOLD && !isEyeOpen) {
+            // Transition from closed to open (eyes are open again)
+            isEyeOpen = true
+        }
+
+        // Handle head movements (existing logic)
+        when {
+            headMovementTasks["Blink detected"]!! &&
+                    !headMovementTasks["Head moved right"]!! &&
+                    headEulerAngleY > 10 -> {
+                updateTask("Head moved right")
+                showInstructionText("Please move your head to the Right")
+                Log.d("FaceDetection", "Head turned right - Angle: $headEulerAngleY")
+            }
+
+            headMovementTasks["Head moved right"]!! &&
+                    !headMovementTasks["Head moved left"]!! &&
+                    headEulerAngleY < -10 -> {
+                updateTask("Head moved left")
+                showInstructionText("Perfect! Taking your photo...")
+                Log.d("FaceDetection", "Head turned left - Angle: $headEulerAngleY")
+                if (!isPictureTaken) {
                     takePicture()
                 }
-            } catch (e: Exception) {
-                Log.e("FaceOverlay", "Error drawing face overlay: ${e.message}")
-            }
-        }
-        private fun processDetectedFace(face: Face) {
-            val headEulerAngleY = face.headEulerAngleY
-            val leftEyeOpenProb = face.leftEyeOpenProbability ?: -1.0f
-            val rightEyeOpenProb = face.rightEyeOpenProbability ?: -1.0f
-
-            when {
-                !headMovementTasks["Blink detected"]!! &&
-                        leftEyeOpenProb < 0.5 && rightEyeOpenProb < 0.5 -> {
-                    updateTask("Blink detected")
-                    showInstructionText("Please Move your head to the Left")
-                    Log.d("FaceDetection", "Blink detected")
-                }
-                headMovementTasks["Blink detected"]!! &&
-                        !headMovementTasks["Head moved right"]!! &&
-                        headEulerAngleY > 10 -> {
-                    updateTask("Head moved right")
-                    showInstructionText("Please Move  your head to the Right")
-                    Log.d("FaceDetection", "Head turned right")
-                }
-                headMovementTasks["Head moved right"]!! &&
-                        !headMovementTasks["Head moved left"]!! &&
-                        headEulerAngleY < -10 -> {
-                    updateTask("Head moved left")
-                    showInstructionText("Perfect! Taking your photo...")
-                    Log.d("FaceDetection", "Head turned left")
-                    if (!isPictureTaken) {
-                        takePicture()
-                    }
-                }
-            }
-
-            if (!headMovementTasks["Blink detected"]!!) {
-                showInstructionText("Please blink your Eyes")
             }
         }
 
+        // Show initial instruction if no blink detected yet
+        if (!headMovementTasks["Blink detected"]!!) {
+            showInstructionText("Please blink your eyes")
+        }
+    }
 
 
 
@@ -2444,77 +2465,77 @@ private fun restartFaceMatchingProcess() {
 
 
 
-private suspend fun matchFaces(selfieBytes: ByteArray, rotationDegrees: Int) {
-    withContext(Dispatchers.Main) {
-        showLoadingDialog()
-        val frontOcrData = sharedViewModel.ocrData.value
+    private suspend fun matchFaces(selfieBytes: ByteArray, rotationDegrees: Int) {
+        withContext(Dispatchers.Main) {
+            showLoadingDialog()
+            val frontOcrData = sharedViewModel.ocrData.value
 
-        // Validate reference number
-        if (referenceNumber.isNullOrEmpty()) {
-            throw Exception("Reference number is missing")
+            // Validate reference number
+            if (referenceNumber.isNullOrEmpty()) {
+                throw Exception("Reference number is missing")
+            }
+
+            // Log OCR data
+            Log.d("FaceMatching", "OCR Data: $frontOcrData")
+            Log.d("FaceMatching", "Reference Number: $referenceNumber")
+
+            if (frontOcrData?.croppedFace.isNullOrEmpty()) {
+                throw Exception("Missing reference face image")
+            }
+
+            // Download reference image
+            Log.d("FaceMatching", "Downloading reference image from: ${frontOcrData!!.croppedFace}")
+            val referenceImageBytes = withContext(Dispatchers.IO) {
+                downloadReferenceImage(frontOcrData.croppedFace!!)
+            }
+            Log.d("FaceMatching", "Reference image size: ${referenceImageBytes.size} bytes")
+            Log.d("FaceMatching", "Selfie image size: ${selfieBytes.size} bytes")
+
+            // Decode selfieBytes to Bitmap
+            val selfieBitmap = BitmapFactory.decodeByteArray(selfieBytes, 0, selfieBytes.size)
+
+            // Correct the orientation of the selfie image
+            val correctedSelfieBitmap = correctImageOrientation(selfieBitmap, rotationDegrees)  // Example: 270 degrees rotation
+
+            // Convert corrected Bitmap back to ByteArray
+            val byteArrayOutputStream = ByteArrayOutputStream()
+            correctedSelfieBitmap.compress(Bitmap.CompressFormat.JPEG, 25, byteArrayOutputStream)  //compressed to 25%
+            val rotatedSelfieBytes = byteArrayOutputStream.toByteArray()
+
+            // Create request body
+            val requestBody = MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart(
+                    "candidate_image",
+                    "${referenceNumber}_selfie.jpg",
+                    rotatedSelfieBytes.toRequestBody("image/jpeg".toMediaTypeOrNull())
+                )
+                .addFormDataPart(
+                    "reference_image",
+                    "${referenceNumber}_profile_image.jpg",
+                    referenceImageBytes.toRequestBody("image/jpeg".toMediaTypeOrNull())
+                )
+                .addFormDataPart("image_id", referenceNumber!!)
+                .build()
+
+
+            // Make request
+            val request = Request.Builder()
+                .url("https://api.innovitegrasuite.online/neuro/verify")
+                .post(requestBody)
+                .build()
+
+            Log.d("FaceMatching", "Sending request to server...")
+            val response = withContext(Dispatchers.IO) {
+                client.newCall(request).execute()
+            }
+
+            // Handle response
+            handleMatchingResponse(response ,referenceNumber!!)
         }
-
-        // Log OCR data
-        Log.d("FaceMatching", "OCR Data: $frontOcrData")
-        Log.d("FaceMatching", "Reference Number: $referenceNumber")
-
-        if (frontOcrData?.croppedFace.isNullOrEmpty()) {
-            throw Exception("Missing reference face image")
-        }
-
-        // Download reference image
-        Log.d("FaceMatching", "Downloading reference image from: ${frontOcrData!!.croppedFace}")
-        val referenceImageBytes = withContext(Dispatchers.IO) {
-            downloadReferenceImage(frontOcrData.croppedFace!!)
-        }
-        Log.d("FaceMatching", "Reference image size: ${referenceImageBytes.size} bytes")
-        Log.d("FaceMatching", "Selfie image size: ${selfieBytes.size} bytes")
-
-        // Decode selfieBytes to Bitmap
-        val selfieBitmap = BitmapFactory.decodeByteArray(selfieBytes, 0, selfieBytes.size)
-
-        // Correct the orientation of the selfie image
-        val correctedSelfieBitmap = correctImageOrientation(selfieBitmap, rotationDegrees)  // Example: 270 degrees rotation
-
-        // Convert corrected Bitmap back to ByteArray
-        val byteArrayOutputStream = ByteArrayOutputStream()
-        correctedSelfieBitmap.compress(Bitmap.CompressFormat.JPEG, 25, byteArrayOutputStream)  //compressed to 25%
-        val rotatedSelfieBytes = byteArrayOutputStream.toByteArray()
-
-        // Create request body
-        val requestBody = MultipartBody.Builder()
-            .setType(MultipartBody.FORM)
-            .addFormDataPart(
-                "candidate_image",
-                "${referenceNumber}_selfie.jpg",
-                rotatedSelfieBytes.toRequestBody("image/jpeg".toMediaTypeOrNull())
-            )
-            .addFormDataPart(
-                "reference_image",
-                "${referenceNumber}_profile_image.jpg",
-                referenceImageBytes.toRequestBody("image/jpeg".toMediaTypeOrNull())
-            )
-            .addFormDataPart("image_id", referenceNumber!!)
-            .build()
-
-
-        // Make request
-        val request = Request.Builder()
-            .url("https://api.innovitegrasuite.online/neuro/verify")
-            .post(requestBody)
-            .build()
-
-        Log.d("FaceMatching", "Sending request to server...")
-        val response = withContext(Dispatchers.IO) {
-            client.newCall(request).execute()
-        }
-
-        // Handle response
-        handleMatchingResponse(response ,referenceNumber!!)
     }
-}
 
-private fun correctImageOrientation(bitmap: Bitmap, rotationDegrees: Int): Bitmap {
+    private fun correctImageOrientation(bitmap: Bitmap, rotationDegrees: Int): Bitmap {
         val matrix = Matrix()
 
         val display =
@@ -2648,7 +2669,7 @@ private fun correctImageOrientation(bitmap: Bitmap, rotationDegrees: Int): Bitma
     }
 
 
-        private fun showErrorDialog(message: String) {
+    private fun showErrorDialog(message: String) {
         runOnUiThread {
             AlertDialog.Builder(this)
                 .setTitle("Error")
@@ -2867,4 +2888,3 @@ fun OcrResponseBack.toMap(): Map<String, Any> {
         "croppedId" to (CroppedId ?: "N/A"),
     )
 }
-
