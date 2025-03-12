@@ -96,36 +96,65 @@ import android.util.Base64
 import androidx.lifecycle.Observer
 import androidx.lifecycle.LifecycleOwner
 import kotlinx.coroutines.cancel
-
-
+import com.facebook.react.ReactApplication
+import com.facebook.react.bridge.ReactContext
+import com.facebook.react.modules.core.DeviceEventManagerModule
+import com.facebook.react.bridge.WritableMap
+import com.facebook.react.bridge.Arguments
+import com.facebook.react.ReactNativeHost
+import com.facebook.react.bridge.ReactApplicationContext
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
+import com.facebook.react.bridge.ReactContextBaseJavaModule
+import com.facebook.react.bridge.ReactMethod
+import com.facebook.react.bridge.Promise
+import com.facebook.react.ReactInstanceEventListener
+import com.facebook.react.ReactInstanceManager
 
 
 abstract class BaseTimeoutActivity : AppCompatActivity() {
     private val timeoutHandler = Handler(Looper.getMainLooper())
-    private val TIMEOUT_DURATION = 180000L // 3 minutes after session timeout
+    private val TIMEOUT_DURATION = 180000L // 10 seconds
+
+    // Status to track session timeout (0 = no timeout, 1 = timeout)
+    private var sessionTimeoutStatus: Int = 0
 
     private val timeoutRunnable = Runnable {
-        cleanupAndReturnToLaunch()
+        sessionTimeoutStatus = 1 // Set status to 1 (timeout occurred)
+        showTimeoutErrorDialog() // Show timeout dialog
     }
 
-    // Make this abstract to force implementation in child classes
-    protected abstract fun cleanupResources()
+    // Make showTimeoutErrorDialog protected so subclasses can access it
+    protected fun showTimeoutErrorDialog() {
+        val status = getSessionTimeoutStatus()
+         Log.d("MyActivity", "Session timeout status: $status")
+        runOnUiThread {
+            AlertDialog.Builder(this)
+                .setTitle("Session Timeout")
+                .setMessage("Your session has timed out. You will be returned to the launch screen.")
+                .setPositiveButton("OK") { dialog, _ ->
+                    dialog.dismiss()
+                    cleanupAndReturnToLaunch()
+                }
+                .setCancelable(false)
+                .show()
+        }
+    }
 
-    private fun cleanupAndReturnToLaunch() {
+    open fun cleanupAndReturnToLaunch() {
         try {
-            // Clear ViewModel data
+            // Log the session timeout status
+            Log.d("BaseTimeoutActivity", "Session timeout status: $sessionTimeoutStatus")
+
+            // Clear shared data
             val sharedViewModel = ViewModelProvider(this)[SharedViewModel::class.java]
-            sharedViewModel.apply {
-                clearAllData()
-            }
-
-             // Call activity-specific cleanup
-            cleanupResources()
-
+            sharedViewModel.clearAllData()
 
             // Return to launch screen
             val intent = packageManager.getLaunchIntentForPackage(packageName)
             intent?.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            intent?.putExtra("sessionTimeoutStatus", sessionTimeoutStatus)
             startActivity(intent)
             finish()
         } catch (e: Exception) {
@@ -136,12 +165,14 @@ abstract class BaseTimeoutActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        sessionTimeoutStatus = 0 // Reset status to 0 when activity is created
         startTimeoutTimer()
     }
 
     override fun onUserInteraction() {
         super.onUserInteraction()
         resetTimeoutTimer()
+        sessionTimeoutStatus = 0 // Reset status to 0 on user interaction
     }
 
     private fun startTimeoutTimer() {
@@ -156,7 +187,15 @@ abstract class BaseTimeoutActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         timeoutHandler.removeCallbacks(timeoutRunnable)
+       
     }
+
+    // Getter for session timeout status
+    fun getSessionTimeoutStatus(): Int {
+        return sessionTimeoutStatus
+    }
+
+    protected abstract fun cleanupResources()
 }
 
 
@@ -688,6 +727,20 @@ class FrontIdCardActivity : BaseTimeoutActivity() {
         mediaActionSound.release()
         cameraExecutor.shutdown()
         cameraProvider?.unbindAll()
+    }
+
+    // Add this method to override the default timeout behavior if needed
+    override fun cleanupAndReturnToLaunch() {
+        try {
+            // Cleanup camera resources first
+            cleanupResources()
+            
+            // Then call parent implementation
+            super.cleanupAndReturnToLaunch()
+        } catch (e: Exception) {
+            Log.e("FrontIdCardActivity", "Error during cleanup: ${e.message}")
+            finish()
+        }
     }
 }
 
@@ -2066,11 +2119,29 @@ class Liveliness : BaseTimeoutActivity() {
         }
     }
 
+    private fun isSessionTimeout(): Boolean {
+    // Implement your logic to check if the session has timed out
+        return getSessionTimeoutStatus() == 1 // Assuming getSessionTimeoutStatus() returns a boolean
+    }
+
+    private fun disableUI() {
+    runOnUiThread {
+        progressBar.visibility = View.GONE
+        overlayImageView.isEnabled = false
+        previewView.isEnabled = false
+        // Disable other UI elements as needed
+    }
+}
+
     override fun onCreate(savedInstanceState: Bundle?) {
 
         referenceNumber = intent.getStringExtra("referenceNumber")
 
         super.onCreate(savedInstanceState)
+        if (isSessionTimeout()) { 
+            disableUI()
+            return
+        }
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         setupUI()
         initializeViewModel()
@@ -2395,6 +2466,10 @@ class Liveliness : BaseTimeoutActivity() {
 
 
     private fun processDetectedFace(face: Face) {
+         if (isSessionTimeout()) {
+             disableUI()
+            return
+        }
         val headEulerAngleY = face.headEulerAngleY
         val leftEyeOpenProb = face.leftEyeOpenProbability ?: -0.9f
         val rightEyeOpenProb = face.rightEyeOpenProbability ?: -0.9f
@@ -2449,6 +2524,11 @@ class Liveliness : BaseTimeoutActivity() {
 
 
     private fun takePicture() {
+
+    if (isSessionTimeout()) {
+         disableUI()
+        return
+    }
 
       if (!isPortraitUp) {
         showOrientationDialog()
@@ -2699,6 +2779,7 @@ class Liveliness : BaseTimeoutActivity() {
               // Put the byte arrays
             intent.putExtra("referenceNumber", referenceNumber)
             intent.putExtra("verificationStatus", verificationStatus)
+            intent.putExtra("sessionTimeoutStatus", getSessionTimeoutStatus()) 
             startActivity(intent)
             finish()
 
@@ -2736,6 +2817,10 @@ class Liveliness : BaseTimeoutActivity() {
     }
 
     private fun showInstructionText(instruction: String) {
+        if (isSessionTimeout()) {
+             disableUI()
+            return
+        }
         runOnUiThread {
             val textView = TextView(this).apply {
                 text = instruction
@@ -2877,17 +2962,24 @@ class Liveliness : BaseTimeoutActivity() {
 
 
 class SharedViewModel(application: Application) : AndroidViewModel(application) {
+    private val _timeoutStatus = MutableLiveData<Pair<Int, String?>>()
+    val timeoutStatus: LiveData<Pair<Int, String?>> get() = _timeoutStatus
     private val _frontImage = MutableStateFlow<Bitmap?>(null)
     private val _backImage = MutableStateFlow<Bitmap?>(null)
     private val _ocrData = MutableStateFlow<OcrResponseFront?>(null)
     private val _ocrData2 = MutableStateFlow<OcrResponseBack?>(null)
     private val _errorState = MutableStateFlow<String?>(null)
+    private val _sessionTimeout = MutableStateFlow<Int?>(null) 
+    private val _isSessionTimeout = MutableStateFlow(false)
 
     val frontImage: StateFlow<Bitmap?> get() = _frontImage
     val backImage: StateFlow<Bitmap?> get() = _backImage
     val ocrData: StateFlow<OcrResponseFront?> get() = _ocrData
     val ocrData2: StateFlow<OcrResponseBack?> get() = _ocrData2
     val errorState: StateFlow<String?> get() = _errorState
+    val sessionTimeout: StateFlow<Int?> get() = _sessionTimeout // Expose sessionTimeout
+    val isSessionTimeout: StateFlow<Boolean> get() = _isSessionTimeout
+    
 
     fun setFrontImage(bitmap: Bitmap) {
         Log.d("ViewModel", "Updating frontImage with new Bitmap: $bitmap")
@@ -2905,18 +2997,25 @@ class SharedViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun setOcrData2(datas: OcrResponseBack) {
-         Log.d("ViewModel", "Updating OCRBack with new data: $datas")
+        Log.d("ViewModel", "Updating OCRBack with new data: $datas")
         _ocrData2.value = datas
     }
-     // Function to set error
+
     fun setError(message: String) {
         Log.e("ViewModel", "Error occurred: $message")
         _errorState.value = message
     }
 
-    //Function to clear error
     fun clearError() {
         _errorState.value = null
+    }
+
+     fun setSessionTimeout(status: Int, message: String?) {
+        _timeoutStatus.value = Pair(status, message)
+    }
+
+    fun updateSessionTimeout(isTimeout: Boolean) {
+        _isSessionTimeout.value = isTimeout
     }
 
     fun clearAllData() {
@@ -2925,6 +3024,7 @@ class SharedViewModel(application: Application) : AndroidViewModel(application) 
         _ocrData.value = null
         _ocrData2.value = null
         _errorState.value = null
+        _sessionTimeout.value = null 
     }
 }
 
@@ -2983,3 +3083,4 @@ fun OcrResponseBack.toMap(): Map<String, Any> {
         "croppedId" to (CroppedId ?: "N/A"),
     )
 }
+

@@ -232,7 +232,7 @@ class IdCardFrontCapturedViewController: UIViewController {
 
         // Start a new timer for 3 minutes (180 seconds)
         inactivityTimer = Timer.scheduledTimer(
-            timeInterval: 120,
+            timeInterval: 180,
             // timeInterval: 180,
             target: self,
             selector: #selector(closeCameraAfterTimeout),
@@ -253,6 +253,7 @@ class IdCardFrontCapturedViewController: UIViewController {
 
         // Stop the camera session
 //        captureSession.stopRunning()
+        Inno.sharedInstance?.sendEvent(withName: "onScreenTimeout", body: 1)
 
         // Dismiss the current view controller
         DispatchQueue.main.async {
@@ -275,7 +276,7 @@ class IdCardFrontCapturedViewController: UIViewController {
         inactivityTimer?.invalidate()
         // Start a new timer
         inactivityTimer = Timer.scheduledTimer(
-            timeInterval: 120,  // 10 seconds (for testing)
+            timeInterval: 180,  // 10 seconds (for testing)
             target: self,
             selector: #selector(closeCameraAfterTimeout),
             userInfo: nil,

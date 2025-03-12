@@ -14,10 +14,12 @@ class SharedViewModel {
     var backImage: UIImage?
     var backImageUrl: String?
     var selfieImage: Data?
+    var referenceId: String = "Reference Id From the native"
     var verificationResult: [String: Any]?
     var isDigitalID: Bool = false
     var digitalFrontImage: UIImage?
     var digitalBackImage: UIImage?
+    var hasEmittedTimeout: Bool = false
 }
 
 struct OcrResponseFront {
@@ -275,9 +277,11 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate {
         loadingIndicator.startAnimating()
         view.bringSubviewToFront(loadingIndicator)
 
-        let referenceID =
-            "INNOVERIFYIOS" + String(Int(Date().timeIntervalSince1970))
-            + String(format: "%08d", Int.random(in: 1_000_000...9_999_999))
+        // let referenceID =
+        //     "INNOVERIFYIOS" + String(Int(Date().timeIntervalSince1970))
+        //     + String(format: "%08d", Int.random(in: 1_000_000...9_999_999))
+        let referenceID = SharedViewModel.shared.referenceNumber ?? ""
+        print("📡 Sending Reference ID to React Native:", referenceID)
 
         uploadImageToAPI(data: imageData, referenceID: referenceID)
     }
@@ -294,7 +298,7 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate {
         let base64Credentials = credentialsData.base64EncodedString()
 
         // let referenceID = "INNOVERIFYMAN" + String(Int(Date().timeIntervalSince1970))
-        SharedViewModel.shared.referenceNumber = referenceID
+        // SharedViewModel.shared.referenceNumber = referenceID
 
         resetInactivityTimer()
         var ocrRequest = URLRequest(
@@ -509,7 +513,7 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate {
 
         // Start a new timer for 3 minutes (180 seconds)
         inactivityTimer = Timer.scheduledTimer(
-            timeInterval: 120,
+            timeInterval: 180,
             // timeInterval: 180,
             target: self,
             selector: #selector(closeCameraAfterTimeout),
@@ -530,6 +534,12 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate {
 
         // Stop the camera session
         captureSession.stopRunning()
+        let hasEmitted = SharedViewModel.shared.hasEmittedTimeout;
+        if(!hasEmitted) {
+            Inno.sharedInstance?.sendEvent(withName: "onScreenTimeout", body: 1)
+        }
+        
+        SharedViewModel.shared.hasEmittedTimeout = true
 
         // Dismiss the current view controller
         DispatchQueue.main.async {
@@ -552,7 +562,7 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate {
         inactivityTimer?.invalidate()
         // Start a new timer
         inactivityTimer = Timer.scheduledTimer(
-            timeInterval: 120,  // 10 seconds (for testing)
+            timeInterval: 180,  // 10 seconds (for testing)
             target: self,
             selector: #selector(closeCameraAfterTimeout),
             userInfo: nil,

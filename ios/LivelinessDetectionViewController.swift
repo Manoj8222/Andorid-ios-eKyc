@@ -23,6 +23,7 @@ class LivelinessDetectionViewController: UIViewController {
     private var imageCaptured = false
     var innoInstance: Inno?
     var inactivityTimer: Timer?
+    private var hasEmittedTimeout: Bool = false
 
     private var faceBoundingBoxLayer: CAShapeLayer?
 
@@ -31,7 +32,7 @@ class LivelinessDetectionViewController: UIViewController {
 
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        stopInactivityTimer()  // Start the initial timer
+        startInactivityTimer()  // Start the initial timer
     }
 
     override func viewDidLoad() {
@@ -44,21 +45,22 @@ class LivelinessDetectionViewController: UIViewController {
 
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
+        stopInactivityTimer()
         inactivityTimer?.invalidate()
         inactivityTimer = nil
     }
-    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
-        super.touchesBegan(touches, with: event)
-        someButtonTapped()
-        print("Touch detected")
-        resetInactivityTimer()  // Reset the timer on interaction
-    }
+    // override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+    //     super.touchesBegan(touches, with: event)
+    //     //        someButtonTapped()
+    //     print("Touch detected")
+    //     resetInactivityTimer()  // Reset the timer on interaction
+    // }
 
     // ✅ Reset the timer for any other UI interactions (e.g., buttons)
-    @objc func someButtonTapped() {
-        resetInactivityTimer()
-        print("Button tapped")
-    }
+    // @objc func someButtonTapped() {
+    //     resetInactivityTimer()
+    //     print("Button tapped")
+    // }
 
     enum LivelinessState {
         case waitingForBlink
@@ -92,9 +94,11 @@ class LivelinessDetectionViewController: UIViewController {
         previewLayer.frame = view.bounds  // Set initial frame
         view.layer.addSublayer(previewLayer)
         captureSession.startRunning()
+        
     }
 
     private func setupUI() {
+        // startInactivityTimer()
 
         // Initialize face bounding box layer
         faceBoundingBoxLayer = CAShapeLayer()
@@ -272,6 +276,8 @@ class LivelinessDetectionViewController: UIViewController {
             return
         }
 
+        resetInactivityTimer()
+
         let leftEAR = calculateEyeAspectRatio(eye: leftEye)
         let rightEAR = calculateEyeAspectRatio(eye: rightEye)
         let averageEAR = (leftEAR + rightEAR) / 2.0
@@ -332,6 +338,8 @@ class LivelinessDetectionViewController: UIViewController {
         countdownSeconds = 3
         countdownLabel.isHidden = false
         countdownLabel.text = "\(countdownSeconds)"
+
+        resetInactivityTimer()
 
         // Invalidate any existing timer
         countdownTimer?.invalidate()
@@ -531,10 +539,11 @@ class LivelinessDetectionViewController: UIViewController {
 
     // ✅ Close the camera after 3 minutes
     @objc private func closeCameraAfterTimeout() {
+
         print("⚠️ Camera closed due to inactivity")
 
         // Stop the camera session
-        captureSession.stopRunning()
+        Inno.sharedInstance?.sendEvent(withName: "onScreenTimeout", body: 1)
 
         // Dismiss the current view controller
         DispatchQueue.main.async {
@@ -557,7 +566,7 @@ class LivelinessDetectionViewController: UIViewController {
         inactivityTimer?.invalidate()
         // Start a new timer
         inactivityTimer = Timer.scheduledTimer(
-            timeInterval: 120,  // 120 seconds
+            timeInterval: 180,  // 120 seconds
             target: self,
             selector: #selector(closeCameraAfterTimeout),
             userInfo: nil,
@@ -584,58 +593,6 @@ extension LivelinessDetectionViewController: AVCaptureVideoDataOutputSampleBuffe
         }
     }
 
-    // func photoOutput(
-    //     _ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto,
-    //     error: Error?
-    // ) {
-    //     if let error = error {
-    //         print("Photo capture error: \(error)")
-    //         return
-    //     }
-    //     guard let imageData = photo.fileDataRepresentation() else { return }
-    //     SharedViewModel.shared.selfieImage = imageData
-    //     loadingIndicator.startAnimating()
-
-    //     guard let selfieImageData = photo.fileDataRepresentation() else {
-    //         print("Error: Could not get selfie image data")
-    //         return
-    //     }
-
-    //     print("✅ Selfie Image stored successfully!")
-
-    //     // ✅ Get Cropped Face Image URL
-    //     guard let croppedFaceUrlString = SharedViewModel.shared.ocrResponse?.imageUrl,
-    //         let croppedFaceUrl = URL(string: croppedFaceUrlString)
-    //     else {
-    //         print("❌ Error: Cropped Face Image URL is missing or invalid")
-    //         return
-    //     }
-
-    //     // ✅ Download Cropped Face Image
-    //     print("🔄 Downloading Cropped Face Image...")
-    //     let downloadTask = URLSession.shared.dataTask(with: croppedFaceUrl) {
-    //         (data, response, error) in
-    //         if let error = error {
-    //             print("❌ Error downloading cropped face: \(error)")
-    //             return
-    //         }
-
-    //         guard let croppedFaceData = data else {
-    //             print("❌ Error: No data received for cropped face")
-    //             return
-    //         }
-
-    //         print("✅ Cropped Face Image downloaded successfully!")
-    //         SharedViewModel.shared.croppedFaceImageData = croppedFaceData
-
-    //         // ✅ Call API after downloading image
-    //         DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-    //             self.callVerificationAPI()
-    //         }
-    //     }
-    //     downloadTask.resume()
-
-    // }
     func photoOutput(
         _ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto,
         error: Error?
@@ -778,7 +735,7 @@ extension LivelinessDetectionViewController: AVCaptureVideoDataOutputSampleBuffe
                         rootVC.dismiss(animated: true) {
                             print("✅ All native screens closed, returning to React Native")
                             let bridge = LivelinessDetectionBridge()
-                            bridge.sendReferenceID(referenceID)
+                            bridge.sendReferenceID("1")
                         }
                     } else {
                         print("❌ Failed to find root view controller")

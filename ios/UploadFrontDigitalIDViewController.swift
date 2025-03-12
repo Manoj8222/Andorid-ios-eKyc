@@ -129,7 +129,7 @@ class UploadFrontDigitalIDViewController: UIViewController, UIImagePickerControl
 
         // ✅ Show Image if Already Selected
         if let selectedImage = SharedViewModel.shared.digitalFrontImage {
-            imageView.image = selectedImage
+            // imageView.image = selectedImage
             placeholderLabel.isHidden = true
             uploadButton.setTitle("Continue", for: .normal)  // ✅ Change Button Text
         } else {
@@ -143,11 +143,12 @@ class UploadFrontDigitalIDViewController: UIViewController, UIImagePickerControl
             // ✅ Image Already Selected → Start Loading & API Call
             showLoading()
             if let imageData = selectedImage.jpegData(compressionQuality: 0.9) {
-                let referenceID =
-                    "INNOVERIFYIOS" + String(Int(Date().timeIntervalSince1970))
-                    + String(format: "%08d", Int.random(in: 1_000_000...9_999_999))
+                // let referenceID =
+                //     "INNOVERIFYIOS" + String(Int(Date().timeIntervalSince1970))
+                //     + String(format: "%08d", Int.random(in: 1_000_000...9_999_999))
 
-                SharedViewModel.shared.referenceNumber = referenceID
+                // SharedViewModel.shared.referenceNumber = referenceID
+                let referenceID = SharedViewModel.shared.referenceNumber ?? ""
                 uploadImageToAPI(data: imageData, referenceID: referenceID)
             }
         } else {
@@ -460,7 +461,7 @@ class UploadFrontDigitalIDViewController: UIViewController, UIImagePickerControl
 
         // Start a new timer for 3 minutes (180 seconds)
         inactivityTimer = Timer.scheduledTimer(
-            timeInterval: 120,
+            timeInterval: 180,
             // timeInterval: 180,
             target: self,
             selector: #selector(closeCameraAfterTimeout),
@@ -481,6 +482,7 @@ class UploadFrontDigitalIDViewController: UIViewController, UIImagePickerControl
         //
         //        // Stop the camera session
         //        captureSession.stopRunning()
+        Inno.sharedInstance?.sendEvent(withName: "onScreenTimeout", body: 1)
 
         // Dismiss the current view controller
         DispatchQueue.main.async {
@@ -503,7 +505,7 @@ class UploadFrontDigitalIDViewController: UIViewController, UIImagePickerControl
         inactivityTimer?.invalidate()
         // Start a new timer
         inactivityTimer = Timer.scheduledTimer(
-            timeInterval: 120,  // 10 seconds (for testing)
+            timeInterval: 180,  // 10 seconds (for testing)
             target: self,
             selector: #selector(closeCameraAfterTimeout),
             userInfo: nil,

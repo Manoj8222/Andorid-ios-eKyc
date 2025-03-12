@@ -8,6 +8,7 @@ import {
   ScrollView,
   TouchableOpacity,
   SafeAreaView,
+  Platform,
 } from 'react-native';
 
 const VerificationScreen = ({ initialProps, onClose }) => {
@@ -42,7 +43,7 @@ const VerificationScreen = ({ initialProps, onClose }) => {
           );
 
           if (!response.ok) {
-            throw new Error(`Error ${response.status}: ${response.statusText}`);
+            throw new Error(`Error: ${response.status} ${response.statusText}`);
           }
 
           const data = await response.json();
@@ -69,9 +70,14 @@ const VerificationScreen = ({ initialProps, onClose }) => {
 
   if (error) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>Error: {error}</Text>
-      </View>
+      <SafeAreaView style={styles.containerSafe}>
+        <View style={styles.centered}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+        <TouchableOpacity style={styles.closeButton} onPress={onClose}>
+          <Text style={styles.closeButtonText}>Close</Text>
+        </TouchableOpacity>
+      </SafeAreaView>
     );
   }
 
@@ -94,7 +100,7 @@ const VerificationScreen = ({ initialProps, onClose }) => {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.containerSafe}>
       <ScrollView style={styles.container}>
         {verificationData ? (
           <>
@@ -189,7 +195,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 10,
-    // paddingVertical: 10,
     backgroundColor: '#FFFFFF',
   },
   containerSafe: {
@@ -335,6 +340,21 @@ const styles = StyleSheet.create({
   buttonText: {
     fontSize: 16,
     color: '#fff',
+    fontWeight: 'bold',
+  },
+  closeButton: {
+    backgroundColor: '#007BFF',
+    padding: 15,
+    borderRadius: 5,
+    alignItems: 'center',
+    width: '90%', // Increase button width
+    position: 'absolute', // Position at bottom
+    bottom: 20, // Adjust as needed
+    alignSelf: 'center', // Center horizontally
+  },
+  closeButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
     fontWeight: 'bold',
   },
   errorText: {

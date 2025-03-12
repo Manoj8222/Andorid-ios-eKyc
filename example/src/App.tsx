@@ -6,32 +6,88 @@ import {
   SafeAreaView,
   TouchableOpacity,
   Text,
+  View,
 } from 'react-native';
 import { showEkycUI } from 'react-native-inno';
 import { NativeEventEmitter, NativeModules, Platform } from 'react-native';
 import VerificationScreen from './Verification';
 
 const { LivelinessDetectionBridge } = NativeModules;
+const Inno = NativeModules.Inno;
+const innoEmitter = Platform.OS === 'ios' && Inno ? new NativeEventEmitter(Inno) : null;
 
-export default function App({ initialProps }) {
-  const { referenceNumber } = initialProps || {};
-  const [referenceID, setReferenceID] = useState<string | null>(null);
+
+export default function App({ initialProps }: { initialProps: any }) {
+  const { referenceNumber, sessionTimeoutStatus } = initialProps || {};
+  console.log(sessionTimeoutStatus,"session")
+  console.log(referenceNumber,"referenceNumber")
+  const [referenceID, setReferenceID] = useState<string | null>("");
   const [showVerification, setShowVerification] = useState(!!referenceNumber);
   const [clicked, setClicked] = useState<boolean>(false);
+  const [sessionTimeout, setSessionTimeout] = useState<boolean>(Boolean(sessionTimeoutStatus));
+  console.log(sessionTimeout,"SessionTimeout")
+
+  function generateReferenceID(): string {
+    // Get the current timestamp in seconds.
+    const timestamp = Math.floor(Date.now() / 1000);
+    // Generate a random number between 1,000,000 and 9,999,999.
+    const randomNum = Math.floor(Math.random() * (9999999 - 1000000 + 1)) + 1000000;
+    // Pad the random number to 8 digits (if needed).
+    const randomNumString = randomNum.toString().padStart(8, '0');
+    return `INNOVERIFYIOS${timestamp}${randomNumString}`;
+  }
+
+  const reference = generateReferenceID();
+
+  const generateReferenceNumber = () => {
+    try {
+      const currentDate = new Date();
+      const dateFormatter = new Intl.DateTimeFormat('en-US', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      }).format(currentDate);
+      const formattedDateTime = dateFormatter.replace(/[^0-9]/g, '');
+      const randomNumber = Math.floor(Math.random() * 1000)
+        .toString()
+        .padStart(3, '0');
+      let referenceId = `INNOVERIFYJUB${formattedDateTime}${randomNumber}`;
+
+      if (referenceId.length > 32) {
+        referenceId = referenceId.substring(0, 32);
+      }
+
+      console.log('Generated reference number:', referenceId);
+      return referenceId;
+    } catch (error) {
+      console.error('Failed to generate reference number:', error.message);
+      return `INNOVERIFYJUB${Date.now()}`; // Fallback reference number
+    }
+  };
+
+  const [referenceVerification, setReferenceVerification] = useState<string | null>(null); 
 
   const startEkyc = async () => {
+    // const reference = generateReferenceID();
+    console.log('Generated reference:-----------', reference);
+    setReferenceVerification(reference);
     if (Platform.OS === 'ios') {
       setClicked(true);
       try {
-        await showEkycUI();
+        await showEkycUI(reference);
       } catch (error) {
         Alert.alert('Error', 'Failed to launch eKYC');
       }
     }
     if (Platform.OS === 'android') {
-      setClicked(true);
+      setShowVerification(true);
       try {
-        await openSelectionScreen();
+        const referenceNumber = generateReferenceNumber(); // Call the function directly
+        await openSelectionScreen(referenceNumber);
         console.log('Selection screen opened');
       } catch (error) {
         console.error(error);
@@ -49,14 +105,27 @@ export default function App({ initialProps }) {
         (event) => {
           console.log(
             '✅ Reference ID received from native:',
-            event.referenceID
+            event.referenceId
           );
           setReferenceID(event.referenceID);
         }
       );
 
+      const subscriptionTimeout = innoEmitter.addListener(
+        'onScreenTimeout',
+        (value) => {
+          console.log('Screen timed out with value:', value);
+          // Handle timeout event here (e.g., reset state or navigate)
+          setClicked(false);
+          setReferenceID(null);
+
+          Alert.alert('Timeout', 'The native screen was closed due to inactivity.');
+        }
+      );
+
       return () => {
         subscription.remove();
+        subscriptionTimeout.remove();
       };
     }, []);
   }
@@ -65,12 +134,33 @@ export default function App({ initialProps }) {
     setShowVerification(false);
     setClicked(false);
     setReferenceID(null);
+    setSessionTimeout(false);
   };
 
-  if (showVerification || (referenceID && clicked)) {
+    const handleCloseSessionTimeout = () => {
+    setShowVerification(false);
+    setSessionTimeout(false);
+    setClicked(false);
+    setReferenceID(null);
+  };
+
+  if (sessionTimeout) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>Session Timeout. Please try again.</Text>
+          <TouchableOpacity style={styles.closeButton} onPress={handleCloseSessionTimeout}>
+            <Text style={styles.closeButtonText}>Close</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (showVerification || sessionTimeout === 0 || (referenceID === '1')) {
     return Platform.OS === 'ios' ? (
       <VerificationScreen
-        initialProps={{ referenceID }}
+        initialProps={{ referenceID: referenceVerification }}
         onClose={handleCloseVerification}
       />
     ) : (
@@ -80,7 +170,7 @@ export default function App({ initialProps }) {
       />
     );
   }
-  if (referenceID != 'null') {
+  if ((reference != 'null' && referenceID != 1) || (!referenceID && !clicked)) {
     return (
       <SafeAreaView style={styles.container}>
         <TouchableOpacity style={styles.button} onPress={startEkyc}>
